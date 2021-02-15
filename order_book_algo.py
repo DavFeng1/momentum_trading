@@ -4,7 +4,7 @@ import numpy as np
 import alpaca_trade_api as tradeapi
 
 
-class Quote():
+class Quote:
     """
     We use Quote objects to represent the bid/ask spread. When we encounter a
     'level change', a move of exactly 1 penny, we may attempt to make one
@@ -64,7 +64,7 @@ class Quote():
                 self.reset()
 
 
-class Position():
+class Position:
     """
     The position object is used to track how many shares we have. We need to
     keep track of this so our position size doesn't inflate beyond the level
@@ -111,7 +111,10 @@ class Position():
 def run(args):
     symbol = args.symbol
     max_shares = args.quantity
-    opts = {}
+    opts = {'base_url': "https://paper-api.alpaca.markets",
+            "key_id": "",
+            "secret_key": ""}
+
     if args.key_id:
         opts['key_id'] = args.key_id
     if args.secret_key:
@@ -120,6 +123,7 @@ def run(args):
         opts['base_url'] = args.base_url
     elif 'key_id' in opts and opts['key_id'].startswith('PK'):
         opts['base_url'] = "https://paper-api.alpaca.markets"
+
     # Create an API object which can be used to submit orders, etc.
     api = tradeapi.REST(**opts)
 
@@ -189,7 +193,7 @@ def run(args):
                 # Everything looks right, so we submit our sell at the bid
                 try:
                     o = api.submit_order(
-                        symbol=symbol, qty='100', side='sell',
+                        symbol=symbol, qty=100, side='sell',
                         type='limit', time_in_force='day',
                         limit_price=str(quote.bid)
                     )
@@ -204,8 +208,10 @@ def run(args):
 
     @conn.on(r'trade_updates')
     async def on_trade_updates(conn, channel, data):
-        # We got an update on one of the orders we submitted. We need to
-        # update our position with the new information.
+        """
+        We got an update on one of the orders we submitted. We need to
+        update our position with the new information.
+        """
         event = data.event
         if event == 'fill':
             if data.order['side'] == 'buy':
@@ -216,17 +222,17 @@ def run(args):
                 position.update_total_shares(
                     -1 * int(data.order['filled_qty'])
                 )
-            position.remove_pending_order(
-                data.order['id'], data.order['side']
-            )
+            position.remove_pending_order(data.order['id'], data.order['side'])
         elif event == 'partial_fill':
             position.update_filled_amount(
-                data.order['id'], int(data.order['filled_qty']),
+                data.order['id'],
+                int(data.order['filled_qty']),
                 data.order['side']
             )
         elif event == 'canceled' or event == 'rejected':
             position.remove_pending_order(
-                data.order['id'], data.order['side']
+                data.order['id'],
+                data.order['side']
             )
 
     conn.run(
@@ -237,7 +243,7 @@ def run(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        '--symbol', type=str, default='SNAP',
+        '--symbol', type=str, default='AAPL',
         help='Symbol you want to trade.'
     )
     parser.add_argument(
